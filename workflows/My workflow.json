@@ -1,0 +1,298 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "ba80ffcb-1bf4-4cbb-808e-0aca63c5f10c",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        768,
+        -16
+      ],
+      "id": "0963970c-f648-4524-9f03-7197796f191b",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "url": "https://www.aljazeera.com/xml/rss/all.xml",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        432,
+        16
+      ],
+      "id": "a5ce0842-ceec-488a-9a94-3a71b0985dd9",
+      "name": "world node"
+    },
+    {
+      "parameters": {
+        "url": "https://www.aujourdhui.ma/feed",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        432,
+        -128
+      ],
+      "id": "d013362f-f249-445f-8edc-2e581b4258f7",
+      "name": "morocco node"
+    },
+    {
+      "parameters": {
+        "url": "https://hnrss.org/frontpage",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        432,
+        176
+      ],
+      "id": "d6f501ef-bf70-41d6-8557-84ac9c03f1a5",
+      "name": "tech node"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "models/gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a news editor creating a daily briefing called \"Morning Brief\" for Discord.\n\nBelow are raw articles from Morocco, World, and Tech news sources. Merge duplicate stories covering the same event. Ignore irrelevant, low-quality, or promotional content (like job postings).\n\nSelect the TOP 3 most important stories per category (Morocco, World, Tech) — 9 stories total.\n\nCHARACTER BUDGET (follow this precisely):\n- You have a MAXIMUM of 3500 characters for your entire response.\n- That gives you roughly 380 characters per story (9 stories × 380 = 3420, leaving room for headers).\n- Each story block (headline + summary + why it matters) must fit in 2-3 sentences MAXIMUM. Do not write more than 25 words per summary and 12 words per \"why it matters\" line.\n- Before finalizing, mentally count your total output. If any section feels long, cut adjectives and secondary details first — keep only the core fact (who/what/when) and impact.\n\nFormat EXACTLY like this, no extra text before or after:\n\n🇲🇦 **MOROCCO**\n\n**[Headline]**\n[1-2 short sentences, max 25 words]\n*Why it matters: [max 12 words]*\n\n(repeat for 3 stories)\n\n🌍 **WORLD**\n(same structure, 3 stories)\n\n💻 **TECH**\n(same structure, 3 stories)\n\nFINAL CHECK: Your response must be under 3500 characters. This is a hard platform limit — going over will cause a technical failure and the briefing will not be delivered. Prioritize staying under the limit over including every detail.\n\nHere are today's articles:\n{{ $json.articles }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        1392,
+        0
+      ],
+      "id": "bd7e1cc3-59b0-424c-a0ee-a2ddbb1ca0aa",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ATBGrEy1tbC8fBX2",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "={{ $json.content.parts[0].text }}",
+        "options": {},
+        "embeds": {
+          "values": [
+            {
+              "description": "={{ $json.briefText }}",
+              "color": "=#FF6B00",
+              "title": "=Morning Brief — {{ $now.toFormat('cccc, LLLL d') }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        0
+      ],
+      "id": "1f4441b1-6256-4885-b249-1e8ceb14ef96",
+      "name": "Discord",
+      "webhookId": "8239631a-285d-41af-8b08-0e91df02803c",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "ljDgoiLWcVUZtcyQ",
+          "name": "Discord Webhook account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nlet articlesText = items.map(item => {\n  const j = item.json;\n  return `Title: ${j.title}\\nLink: ${j.link}\\nSummary: ${j.contentSnippet || j.content || ''}\\n`;\n}).join('\\n---\\n');\n\nreturn [{ json: { articles: articlesText } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        0
+      ],
+      "id": "d6a0f890-fe74-4f00-8626-767b1c59d726",
+      "name": "Format Articles for AI"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.first().json.content.parts[0].text;\n\nconst cleaned = text\n  .replace(/[\\u2018\\u2019]/g, \"'\")   // curly single quotes → straight\n  .replace(/[\\u201C\\u201D]/g, '\"')   // curly double quotes → straight\n  .replace(/`/g, \"'\");                // backticks, just in case\n\nreturn [{ json: { briefText: cleaned } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        0
+      ],
+      "id": "758687e9-1ba7-4550-8d32-187e5349f37d",
+      "name": "Sanitize Gemini Output"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.first().json.content.parts[0].text;\nreturn [{ json: { length: text.length, text: text } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        256
+      ],
+      "id": "56f6e9ea-8c0a-4034-a9e4-e764db6fadeb",
+      "name": "Enforce Discord Length Limit"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "world node",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "morocco node",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "tech node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "world node": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "morocco node": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tech node": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Format Articles for AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Enforce Discord Length Limit",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Sanitize Gemini Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Articles for AI": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanitize Gemini Output": {
+      "main": [
+        [
+          {
+            "node": "Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enforce Discord Length Limit": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "b761dd06-d6d2-419a-b235-98ba0b37a2d2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "448dcccb918be7c7ccc4a2d86c8fcfa4c42c43d331adc9794437d3a49f7915cf"
+  },
+  "nodeGroups": [],
+  "id": "srBdR3HE55paG8h3",
+  "tags": []
+}
