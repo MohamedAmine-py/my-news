@@ -141,4 +141,8 @@ Both were added after running into real issues during development — kept here 
 
 ## License
 
-Free to use, modify, and learn from.
+Copyright © 2026 Mohamed Amine Benbouselham.
+
+My News is available for personal, educational, research, and other non-commercial use. Commercial use requires prior written permission from the copyright holder.
+
+See [LICENSE](LICENSE) for the full terms.
